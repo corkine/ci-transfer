@@ -1,10 +1,10 @@
 use clap::Parser;
 use ssh2::Session;
+use std::fs::{read_dir, File};
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::Path;
-use std::fs::{File, read_dir};
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -67,8 +67,12 @@ impl std::fmt::Display for TransferError {
 }
 
 fn parse_destination(destination: &str) -> Result<SshConfig, TransferError> {
-    if let Ok(decoded) = base64::decode(&destination) {
-        return parse_destination(std::str::from_utf8(&decoded).unwrap());
+    match base64::decode(&destination) {
+        Ok(decoded) => match std::str::from_utf8(&decoded) {
+            Ok(s) => return parse_destination(s),
+            _ => (),
+        },
+        _ => (),
     }
     let parts: Vec<&str> = destination.split('@').collect();
     if parts.len() != 2 {
@@ -93,11 +97,15 @@ fn parse_destination(destination: &str) -> Result<SshConfig, TransferError> {
     })
 }
 
-fn transfer_file(session: &Session, local_path: &Path, remote_path: &str) -> Result<(), TransferError> {
+fn transfer_file(
+    session: &Session,
+    local_path: &Path,
+    remote_path: &str,
+) -> Result<(), TransferError> {
     let mut local_file = File::open(local_path)?;
     let file_size = local_file.metadata()?.len();
     let mut remote_file = session.scp_send(Path::new(remote_path), 0o644, file_size, None)?;
-    
+
     let mut buffer = vec![0; 1024 * 1024]; // 1MB buffer
     let mut total_transferred = 0;
     let start_time = Instant::now();
@@ -131,11 +139,18 @@ fn transfer_file(session: &Session, local_path: &Path, remote_path: &str) -> Res
 fn print_progress(transferred: u64, total: u64, elapsed: Duration) {
     let percentage = (transferred as f64 / total as f64) * 100.0;
     let speed = transferred as f64 / elapsed.as_secs_f64() / 1024.0 / 1024.0; // MB/s
-    print!("\rProgress: {:.2}% ({}/{} bytes) - {:.2} MB/s", percentage, transferred, total, speed);
+    print!(
+        "\rProgress: {:.2}% ({}/{} bytes) - {:.2} MB/s",
+        percentage, transferred, total, speed
+    );
     std::io::stdout().flush().unwrap();
 }
 
-fn transfer_directory(session: &Session, local_dir: &Path, remote_dir: &str) -> Result<(), TransferError> {
+fn transfer_directory(
+    session: &Session,
+    local_dir: &Path,
+    remote_dir: &str,
+) -> Result<(), TransferError> {
     let sftp = session.sftp()?;
     sftp.mkdir(Path::new(remote_dir), 0o755)?;
 
@@ -161,7 +176,11 @@ fn transfer(session: &Session, source: &str, remote_path: &str) -> Result<(), Tr
         transfer_directory(session, source_path, remote_path)
     } else {
         let remote_file_path = if remote_path.ends_with('/') {
-            format!("{}{}", remote_path, source_path.file_name().unwrap().to_str().unwrap())
+            format!(
+                "{}{}",
+                remote_path,
+                source_path.file_name().unwrap().to_str().unwrap()
+            )
         } else {
             remote_path.to_string()
         };
