@@ -67,6 +67,9 @@ impl std::fmt::Display for TransferError {
 }
 
 fn parse_destination(destination: &str) -> Result<SshConfig, TransferError> {
+    if destination.is_empty() {
+        return Err(TransferError::Other("Destination cannot be empty".into()));
+    }
     match base64::decode(&destination) {
         Ok(decoded) => match std::str::from_utf8(&decoded) {
             Ok(s) => return parse_destination(s),
@@ -190,6 +193,15 @@ fn transfer(session: &Session, source: &str, remote_path: &str) -> Result<(), Tr
 
 fn execute_ssh_commands(session: &Session, commands: &[String]) -> Result<(), TransferError> {
     for command in commands {
+        if command.is_empty() {
+            continue;
+        }
+        if let Ok(decoded) = base64::decode(&command) {
+            if let Ok(decoded_str) = std::str::from_utf8(&decoded) {
+                execute_ssh_commands(session, &[decoded_str.to_string()])?;
+                continue;
+            }
+        }
         let mut channel = session.channel_session()?;
         channel.exec(command)?;
         let mut output = String::new();
