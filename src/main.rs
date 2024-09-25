@@ -1,5 +1,6 @@
 use clap::Parser;
 use ssh2::Session;
+use std::borrow::Cow;
 use std::fs::{read_dir, File};
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -204,7 +205,9 @@ fn execute_ssh_commands(session: &Session, commands: &[String]) -> Result<(), Tr
             }
         }
         let mut channel = session.channel_session()?;
-        channel.exec(&format!("bash -c '{}'", command.replace("'", "'\"'\"'")))?;
+        let escaped_command = escape_command(command);
+        let wrapped_command = format!("bash -c {}", escaped_command);
+        channel.exec(&wrapped_command)?;
         let mut output = String::new();
         channel.read_to_string(&mut output)?;
         println!("Command: {}", command);
@@ -214,6 +217,15 @@ fn execute_ssh_commands(session: &Session, commands: &[String]) -> Result<(), Tr
         println!("---");
     }
     Ok(())
+}
+
+fn escape_command(cmd: &str) -> Cow<str> {
+    if cmd.contains('"') || cmd.contains('\\') {
+        let escaped = cmd.replace('"', "\\\"").replace('\\', "\\\\");
+        Cow::Owned(format!("\"{}\"", escaped))
+    } else {
+        Cow::Borrowed(cmd)
+    }
 }
 
 fn main() -> Result<(), TransferError> {
