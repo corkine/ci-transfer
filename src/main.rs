@@ -67,6 +67,9 @@ impl std::fmt::Display for TransferError {
 }
 
 fn parse_destination(destination: &str) -> Result<SshConfig, TransferError> {
+    if let Ok(decoded) = base64::decode(&destination) {
+        return parse_destination(std::str::from_utf8(&decoded).unwrap());
+    }
     let parts: Vec<&str> = destination.split('@').collect();
     if parts.len() != 2 {
         return Err(TransferError::Other("Invalid destination format".into()));

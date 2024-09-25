@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 clap = { version = "3.0", features = ["derive"] }
 ssh2 = "0.9"
+base64 = "0.22.1"
