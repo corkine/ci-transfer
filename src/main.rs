@@ -220,7 +220,9 @@ fn main() -> Result<(), TransferError> {
     let ssh_config = parse_destination(&args.destination)?;
 
     let tcp = TcpStream::connect(format!("{}:{}", ssh_config.ip, args.port))?;
+    println!("Connected to {}:{}", ssh_config.ip, args.port);
     let mut session = Session::new()?;
+    session.set_timeout(Duration::from_secs(180).as_millis() as u32);
     session.set_tcp_stream(tcp);
     session.handshake()?;
     session.userauth_password(&ssh_config.username, &ssh_config.password)?;
