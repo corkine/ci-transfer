@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "3.0", features = ["derive"] }
-ssh2 = { version = "0.9", default-features = false, features = ["ring"] }
+ssh2 = "0.9"
+openssl = { version = "=0.10.33", features = ["vendored"] }
