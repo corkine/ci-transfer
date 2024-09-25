@@ -39,10 +39,11 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y musl-tools
+        sudo apt-get install -y libssl-dev
 
     - name: Build with OpenSSL
       run: |
-        OPENSSL_DIR=/usr/include/openssl OPENSSL_LIB_DIR=/usr/lib cargo build --target ${{ matrix.target }}
+        cargo build --target ${{ matrix.target }} --features vendored
 
     # - name: Build
     #   uses: actions-rs/cargo@v1
