@@ -16,12 +16,12 @@ jobs:
           - os: linux
             target: x86_64-unknown-linux-musl
             binary: ci-transfer
-          - os: macos
-            target: x86_64-apple-darwin
-            binary: ci-transfer
-          - os: windows
-            target: x86_64-pc-windows-msvc
-            binary: ci-transfer.exe
+          # - os: macos
+          #   target: x86_64-apple-darwin
+          #   binary: ci-transfer
+          # - os: windows
+          #   target: x86_64-pc-windows-msvc
+          #   binary: ci-transfer.exe
 
     steps:
     - uses: actions/checkout@v2
