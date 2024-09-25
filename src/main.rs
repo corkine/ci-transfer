@@ -204,7 +204,7 @@ fn execute_ssh_commands(session: &Session, commands: &[String]) -> Result<(), Tr
             }
         }
         let mut channel = session.channel_session()?;
-        channel.exec(command)?;
+        channel.exec(&format!("bash -c '{}'", command.replace("'", "'\"'\"'")))?;
         let mut output = String::new();
         channel.read_to_string(&mut output)?;
         println!("Command: {}", command);
