@@ -7,21 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
-    name: Release for ${{ matrix.os }}
+  build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - os: linux
-            target: x86_64-unknown-linux-musl
-            binary: ci-transfer
-          # - os: macos
-          #   target: x86_64-apple-darwin
-          #   binary: ci-transfer
-          # - os: windows
-          #   target: x86_64-pc-windows-msvc
-          #   binary: ci-transfer.exe
 
     steps:
     - uses: actions/checkout@v2
@@ -32,38 +19,19 @@ jobs:
         profile: minimal
         toolchain: stable
         override: true
-        target: ${{ matrix.target }}
 
-    - name: Install musl-tools (Linux only)
-      if: matrix.os == 'linux'
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y musl-tools
         sudo apt-get install -y libssl-dev
 
-    - name: Build with OpenSSL
-      run: |
-        cargo build --target ${{ matrix.target }} --features vendored
-
-    # - name: Build
-    #   uses: actions-rs/cargo@v1
-    #   with:
-    #     command: build
-    #     args: --release --target ${{ matrix.target }}
-
-    - name: Rename binary
-      run: |
-        mv target/${{ matrix.target }}/release/${{ matrix.binary }} ci-transfer-${{ matrix.os }}${{ matrix.os == 'windows' && '.exe' || '' }}
-
-    - name: Generate SHA256
-      run: |
-        sha256sum ci-transfer-${{ matrix.os }}${{ matrix.os == 'windows' && '.exe' || '' }} > ci-transfer-${{ matrix.os }}${{ matrix.os == 'windows' && '.exe' || '' }}.sha256
+    - name: Build
+      run: cargo build --release
 
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          ci-transfer-${{ matrix.os }}${{ matrix.os == 'windows' && '.exe' || '' }}
-          ci-transfer-${{ matrix.os }}${{ matrix.os == 'windows' && '.exe' || '' }}.sha256
+          target/release/ci-transfer
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
