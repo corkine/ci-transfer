@@ -174,6 +174,7 @@ fn transfer_directory(
 }
 
 fn transfer(session: &Session, source: &str, remote_path: &str) -> Result<(), TransferError> {
+    println!("Transferring: {} -> {}", source, remote_path);
     let source_path = Path::new(source);
     if source_path.is_dir() {
         transfer_directory(session, source_path, remote_path)
@@ -222,7 +223,7 @@ fn main() -> Result<(), TransferError> {
     let tcp = TcpStream::connect(format!("{}:{}", ssh_config.ip, args.port))?;
     println!("Connected to {}:{}", ssh_config.ip, args.port);
     let mut session = Session::new()?;
-    session.set_timeout(Duration::from_secs(180).as_millis() as u32);
+    session.set_timeout(0);
     session.set_tcp_stream(tcp);
     session.handshake()?;
     session.userauth_password(&ssh_config.username, &ssh_config.password)?;
