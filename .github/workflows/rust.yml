@@ -40,11 +40,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y musl-tools
 
-    - name: Install cross
-      run: cargo install cross
+    - name: Build with OpenSSL
+      run: |
+        OPENSSL_DIR=/usr/include/openssl OPENSSL_LIB_DIR=/usr/lib cargo build --target ${{ matrix.target }}
 
-    - name: Build with cross
-      run: cross build --target ${{ matrix.target }}
+    # - name: Build
+    #   uses: actions-rs/cargo@v1
+    #   with:
+    #     command: build
+    #     args: --release --target ${{ matrix.target }}
 
     - name: Rename binary
       run: |
