@@ -13,7 +13,7 @@ pub struct OssConfig {
     oss_endpoint: String,
     key_secret: String,
     key_id: String,
-    destionation: String,
+    path: String,
     #[serde(default)] // 使用默认值，如果 JSON 中没有这个字段
     override_existing: Option<bool>,
 }
@@ -21,10 +21,10 @@ pub struct OssConfig {
 impl From<OssConfig> for OSS {
     fn from(value: OssConfig) -> Self {
         OSS::new(
-            value.oss_bucket,
             value.key_id,
             value.key_secret,
             value.oss_endpoint.clone(),
+            value.oss_bucket,
         )
     }
 }
@@ -45,77 +45,75 @@ pub fn parse_destination_oss(destination: &str) -> Result<OssConfig, TransferErr
     Ok(config)
 }
 
-fn get_files(path: &str) -> Result<Vec<String>, TransferError> {
-    let path = Path::new(path);
-
-    if !path.exists() {
-        return Err(TransferError::Other("Path does not exist".into()));
-    }
-
-    if path.is_dir() {
-        let mut files = Vec::new();
-        collect_files_recursive(path, &mut files)?;
-        Ok(files)
-    } else if path.is_file() {
-        Ok(vec![path.to_string_lossy().into_owned()])
-    } else {
-        Err(TransferError::Other(
-            "Path is neither a file nor directory".into(),
-        ))
-    }
-}
-
-fn collect_files_recursive(dir: &Path, files: &mut Vec<String>) -> Result<(), TransferError> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                collect_files_recursive(&path, files)?;
-            } else {
-                files.push(path.to_string_lossy().into_owned());
-            }
-        }
-    }
-    Ok(())
-}
-
 pub fn handle_oss(source: &str, oss_config: OssConfig) -> Result<(), TransferError> {
     use aliyun_oss_rust_sdk::request::RequestBuilder;
 
     let oss: OSS = oss_config.clone().into();
     let build = RequestBuilder::new();
+    let source_path = Path::new(source);
 
-    let files = get_files(source)?;
-    for file in files {
-        let path = Path::new(&file);
-        let path = path.strip_prefix(source).unwrap();
-        let real_path = Path::new(&oss_config.destionation)
-            .join(path.to_string_lossy().into_owned())
-            .to_string_lossy()
-            .into_owned()
-            .replace("\\", "/");
-        oss.put_object_from_file(real_path, file, build.clone())
-        .map_err(|e| TransferError::OssError(format!("{}", e)))?;
+    if !source_path.exists() {
+        return Err(TransferError::Other(format!(
+            "Source path {} does not exist",
+            source
+        )));
+    }
+
+    if source_path.is_dir() {
+        let mut dirs_to_visit = vec![source_path.to_path_buf()];
+        while let Some(dir) = dirs_to_visit.pop() {
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    dirs_to_visit.push(path);
+                } else if path.is_file() {
+                    let relative_path = path.strip_prefix(source_path).unwrap();
+                    let oss_object_path = Path::new(&oss_config.path)
+                        .join(relative_path)
+                        .to_string_lossy()
+                        .into_owned();
+                    let real_path = oss_object_path.replace("\\", "/");
+
+                    oss.put_object_from_file(
+                        real_path,
+                        path.to_string_lossy().into_owned(),
+                        build.clone(),
+                    )
+                    .map_err(|e| TransferError::OssError(format!("{}", e)))?;
+                }
+            }
+        }
+    } else if source_path.is_file() {
+        let oss_object_path = if oss_config.path.ends_with('/') {
+            let file_name = source_path.file_name().unwrap().to_str().unwrap();
+            format!("{}{}", oss_config.path, file_name)
+        } else {
+            oss_config.path.clone()
+        };
+        let real_path = oss_object_path.replace("\\", "/");
+        oss.put_object_from_file(real_path, source.to_string(), build)
+            .map_err(|e| TransferError::OssError(format!("{}", e)))?;
+    } else {
+        return Err(TransferError::Other(
+            "Path is neither a file nor directory".into(),
+        ));
     }
 
     Ok(())
 }
 
 #[test]
-fn test_get_files() {
-    let files = get_files("src").unwrap();
-    dbg!(files);
-}
-
-#[test]
 fn test_handle_oss() {
-    let _ = handle_oss("src", OssConfig {
-        destionation: "/test".into(),
-        oss_bucket: "test".into(),
-        oss_endpoint: "http://oss-cn-hangzhou.aliyuncs.com".into(),
-        key_id: "test".into(),
-        key_secret: "test".into(),
-        override_existing: None
-    });
+    let _ = handle_oss(
+        "src",
+        OssConfig {
+            path: "/test".into(),
+            oss_bucket: "test".into(),
+            oss_endpoint: "http://oss-cn-hangzhou.aliyuncs.com".into(),
+            key_id: "test".into(),
+            key_secret: "test".into(),
+            override_existing: None,
+        },
+    );
 }

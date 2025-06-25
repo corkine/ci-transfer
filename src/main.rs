@@ -53,7 +53,7 @@ fn main() -> Result<(), TransferError> {
                 }
             }
             Err(_) => {
-                errors.push("Invalid oss_destionation format".to_string());
+                errors.push("Invalid oss_destination format".to_string());
             }
         }
     }
