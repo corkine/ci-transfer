@@ -18,7 +18,7 @@
     ./ci-transfer -s target/x86_64-unknown-linux-musl/release/calibre-api -d "$DESTINATION" --precommands "rm -f /root/calibre-web/calibre-api" -c "/root/calibre-web/deploy.sh"
 ```
 
-可使用 --oss_destination 参数将文件上传至 OSS，传入的内容为 JSON 格式字符串或 Base64 编码字符串：
+可使用 --oss-destination 参数将文件上传至 OSS，传入的内容为 JSON 格式字符串或 Base64 编码字符串：
 
 ```json
 {
