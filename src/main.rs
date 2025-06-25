@@ -4,7 +4,7 @@ mod ssh;
 
 use clap::Parser;
 use error::TransferError;
-use oss::{handle_oss, parse_destiontion_oss};
+use oss::{handle_oss, parse_destination_oss};
 use ssh::{handle_ssh, parse_destination_ssh};
 
 #[derive(Parser, Debug)]
@@ -22,7 +22,7 @@ struct Args {
     /// Transfer files to aliyun OSS
     /// base64 encoded Configuration
     #[clap(short, long)]
-    oss_destionation: Option<String>,
+    oss_destination: Option<String>,
 
     /// SSH commands to execute before transfer
     /// Or base64 encoded commands
@@ -44,9 +44,9 @@ fn main() -> Result<(), TransferError> {
     let mut transfer_done = false;
     let mut errors: Vec<String> = Vec::new();
 
-    if let Some(oss_dest) = &args.oss_destionation {
+    if let Some(oss_dest) = &args.oss_destination {
         transfer_done = true;
-        match parse_destiontion_oss(oss_dest) {
+        match parse_destination_oss(oss_dest) {
             Ok(oss_config) => {
                 if let Err(e) = handle_oss(&args.source, oss_config) {
                     errors.push(format!("OSS transfer failed: {}", e));

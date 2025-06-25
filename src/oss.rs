@@ -29,13 +29,13 @@ impl From<OssConfig> for OSS {
     }
 }
 
-pub fn parse_destiontion_oss(destination: &str) -> Result<OssConfig, TransferError> {
+pub fn parse_destination_oss(destination: &str) -> Result<OssConfig, TransferError> {
     if destination.is_empty() {
         return Err(TransferError::Other("Destination cannot be empty".into()));
     }
     match base64::decode(&destination) {
         Ok(decoded) => match std::str::from_utf8(&decoded) {
-            Ok(s) => return parse_destiontion_oss(s),
+            Ok(s) => return parse_destination_oss(s),
             _ => (),
         },
         _ => (),
