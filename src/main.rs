@@ -17,12 +17,12 @@ struct Args {
     /// Destination in format user:pass@ip:/path
     /// Or base64 encoded destination
     #[clap(short, long)]
-    destination: String,
+    destination: Option<String>,
 
     /// Transfer files to aliyun OSS
     /// base64 encoded Configuration
-    #[clap(short, long, default_value = "{}")]
-    oss_destionation: String,
+    #[clap(short, long)]
+    oss_destionation: Option<String>,
 
     /// SSH commands to execute before transfer
     /// Or base64 encoded commands
@@ -41,13 +41,39 @@ struct Args {
 
 fn main() -> Result<(), TransferError> {
     let args = Args::parse();
-    if let Ok(ssh_config) = parse_destination_ssh(&args.destination) {
-        return Ok(handle_ssh(&args, ssh_config)?);
-    } else {
-        if let Ok(oss_config) = parse_destiontion_oss(&args.oss_destionation) {
-            return Ok(handle_oss(&args.source, oss_config)?)
-        } else {
-            let json_str = r#"
+    let mut transfer_done = false;
+    let mut errors: Vec<String> = Vec::new();
+
+    if let Some(oss_dest) = &args.oss_destionation {
+        transfer_done = true;
+        match parse_destiontion_oss(oss_dest) {
+            Ok(oss_config) => {
+                if let Err(e) = handle_oss(&args.source, oss_config) {
+                    errors.push(format!("OSS transfer failed: {}", e));
+                }
+            }
+            Err(_) => {
+                errors.push("Invalid oss_destionation format".to_string());
+            }
+        }
+    }
+
+    if let Some(destination) = &args.destination {
+        transfer_done = true;
+        match parse_destination_ssh(destination) {
+            Ok(ssh_config) => {
+                if let Err(e) = handle_ssh(&args, ssh_config) {
+                    errors.push(format!("SSH transfer failed: {}", e));
+                }
+            }
+            Err(_) => {
+                errors.push("Invalid destination format".to_string());
+            }
+        }
+    }
+
+    if !transfer_done {
+        let json_str = r#"
         {
             "oss_bucket": "my-bucket",
             "oss_endpoint": "oss-cn-beijing.aliyuncs.com",
@@ -57,15 +83,20 @@ fn main() -> Result<(), TransferError> {
             "override_existing": true
         }
         "#;
-            return Err(TransferError::Other(
-                format!(
-                    "Destination cannot be empty,
+        return Err(TransferError::Other(
+            format!(
+                "Destination cannot be empty,
             you can put user:pass@ip:/path to use ssh destionation, 
             or put json format like {json_str} to use aliyun oss destination
             or use base64 encode ssh/oss format"
-                )
-                .into(),
-            ));
-        }
+            )
+            .into(),
+        ));
     }
+
+    if !errors.is_empty() {
+        return Err(TransferError::Other(errors.join("\n").into()));
+    }
+
+    Ok(())
 }

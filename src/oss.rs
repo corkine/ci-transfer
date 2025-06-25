@@ -1,10 +1,9 @@
 use std::{
-    fmt::format,
-    fs::{self, File},
+    fs::{self},
     path::Path,
 };
 
-use crate::{error::TransferError, Args};
+use crate::error::TransferError;
 use aliyun_oss_rust_sdk::oss::OSS;
 use serde::{Deserialize, Serialize};
 
