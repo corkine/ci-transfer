@@ -7,31 +7,63 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build_linux:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev
+      - name: Build
+        run: cargo build --release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-transfer-linux
+          path: target/release/ci-transfer
 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+  build_windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Build
+        run: cargo build --release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-transfer-windows
+          path: target/release/ci-transfer.exe
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libssl-dev
-
-    - name: Build
-      run: cargo build --release
-
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          target/release/ci-transfer
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release:
+    runs-on: ubuntu-latest
+    needs: [build_linux, build_windows]
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/ci-transfer-linux/ci-transfer
+            artifacts/ci-transfer-windows/ci-transfer.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
