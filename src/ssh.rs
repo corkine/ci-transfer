@@ -5,6 +5,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::Path;
 use std::time::{Duration, Instant};
+use base64::{engine::general_purpose, Engine as _};
 
 use crate::error::TransferError;
 use crate::Args;
@@ -106,7 +107,7 @@ pub fn execute_ssh_commands(session: &Session, commands: &[String]) -> Result<()
         if command.is_empty() {
             continue;
         }
-        if let Ok(decoded) = base64::decode(&command) {
+        if let Ok(decoded) = general_purpose::STANDARD.decode(&command) {
             if let Ok(decoded_str) = std::str::from_utf8(&decoded) {
                 execute_ssh_commands(session, &[decoded_str.to_string()])?;
                 continue;
@@ -147,7 +148,7 @@ pub fn parse_destination_ssh(destination: &str) -> Result<SshConfig, TransferErr
     if destination.is_empty() {
         return Err(TransferError::Other("Destination cannot be empty".into()));
     }
-    match base64::decode(&destination) {
+    match general_purpose::STANDARD.decode(&destination) {
         Ok(decoded) => match std::str::from_utf8(&decoded) {
             Ok(s) => return parse_destination_ssh(s),
             _ => (),

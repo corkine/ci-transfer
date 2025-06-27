@@ -2,10 +2,13 @@ use std::{
     fs::{self},
     path::Path,
 };
+use std::time::Duration;
 
 use crate::error::TransferError;
 use aliyun_oss_rust_sdk::oss::OSS;
+use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
+use aliyun_oss_rust_sdk::request::RequestBuilder;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OssConfig {
@@ -33,7 +36,7 @@ pub fn parse_destination_oss(destination: &str) -> Result<OssConfig, TransferErr
     if destination.is_empty() {
         return Err(TransferError::Other("Destination cannot be empty".into()));
     }
-    match base64::decode(&destination) {
+    match general_purpose::STANDARD.decode(&destination) {
         Ok(decoded) => match std::str::from_utf8(&decoded) {
             Ok(s) => return parse_destination_oss(s),
             _ => (),
@@ -49,7 +52,7 @@ pub fn handle_oss(source: &str, oss_config: OssConfig) -> Result<(), TransferErr
     use aliyun_oss_rust_sdk::request::RequestBuilder;
 
     let oss: OSS = oss_config.clone().into();
-    let build = RequestBuilder::new();
+    let build = RequestBuilder::new().with_expire(300);
     let source_path = Path::new(source);
 
     if !source_path.exists() {
@@ -74,6 +77,8 @@ pub fn handle_oss(source: &str, oss_config: OssConfig) -> Result<(), TransferErr
                         .to_string_lossy()
                         .into_owned();
                     let real_path = oss_object_path.replace("\\", "/");
+                    
+                    println!("oss transfer: {}", real_path);
 
                     oss.put_object_from_file(
                         real_path,
@@ -92,6 +97,7 @@ pub fn handle_oss(source: &str, oss_config: OssConfig) -> Result<(), TransferErr
             oss_config.path.clone()
         };
         let real_path = oss_object_path.replace("\\", "/");
+        println!("oss transfer: {}", real_path);
         oss.put_object_from_file(real_path, source.to_string(), build)
             .map_err(|e| TransferError::OssError(format!("{}", e)))?;
     } else {
