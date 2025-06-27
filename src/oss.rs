@@ -2,13 +2,11 @@ use std::{
     fs::{self},
     path::Path,
 };
-use std::time::Duration;
 
 use crate::error::TransferError;
 use aliyun_oss_rust_sdk::oss::OSS;
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
-use aliyun_oss_rust_sdk::request::RequestBuilder;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OssConfig {
