@@ -83,23 +83,58 @@ fn transfer_directory(
     Ok(())
 }
 
-pub fn transfer(session: &Session, source: &str, remote_path: &str) -> Result<(), TransferError> {
-    println!("Transferring: {} -> {}", source, remote_path);
-    let source_path = Path::new(source);
-    if source_path.is_dir() {
-        transfer_directory(session, source_path, remote_path)
-    } else {
-        let remote_file_path = if remote_path.ends_with('/') {
-            format!(
-                "{}{}",
-                remote_path,
-                source_path.file_name().unwrap().to_str().unwrap()
-            )
-        } else {
-            remote_path.to_string()
-        };
-        transfer_file(session, source_path, &remote_file_path)
+pub fn transfer(session: &Session, sources: &[String], remote_path: &str) -> Result<(), TransferError> {
+    // Handle empty sources case (side-effect only)
+    if sources.is_empty() {
+        println!("No source files specified for SSH transfer - side-effect only operation");
+        return Ok(());
     }
+
+    for source in sources {
+        println!("Transferring: {} -> {}", source, remote_path);
+        let source_path = Path::new(source);
+        
+        if !source_path.exists() {
+            return Err(TransferError::Other(format!(
+                "Source path {} does not exist",
+                source
+            )));
+        }
+        
+        if source_path.is_dir() {
+            let dir_name = source_path.file_name().unwrap().to_str().unwrap();
+            let target_dir = if remote_path.ends_with('/') {
+                format!("{}{}", remote_path, dir_name)
+            } else {
+                // For multiple sources, create subdirectories
+                if sources.len() > 1 {
+                    format!("{}/{}", remote_path.trim_end_matches('/'), dir_name)
+                } else {
+                    remote_path.to_string()
+                }
+            };
+            transfer_directory(session, source_path, &target_dir)?;
+        } else {
+            let remote_file_path = if remote_path.ends_with('/') {
+                format!(
+                    "{}{}",
+                    remote_path,
+                    source_path.file_name().unwrap().to_str().unwrap()
+                )
+            } else {
+                // For multiple files, we need to create unique paths
+                if sources.len() > 1 {
+                    let file_name = source_path.file_name().unwrap().to_str().unwrap();
+                    format!("{}/{}", remote_path.trim_end_matches('/'), file_name)
+                } else {
+                    remote_path.to_string()
+                }
+            };
+            transfer_file(session, source_path, &remote_file_path)?;
+        }
+    }
+    
+    Ok(())
 }
 
 pub fn execute_ssh_commands(session: &Session, commands: &[String]) -> Result<(), TransferError> {

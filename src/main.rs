@@ -10,9 +10,9 @@ use ssh::{handle_ssh, parse_destination_ssh};
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    /// Source file or directory path
-    #[clap(short, long)]
-    source: String,
+    /// Source file or directory paths (can be empty for side-effect only operations)
+    #[clap(short, long, multiple_values = true)]
+    source: Vec<String>,
 
     /// Destination in format user:pass@ip:/path
     /// Or base64 encoded destination
@@ -72,7 +72,12 @@ fn main() -> Result<(), TransferError> {
         }
     }
 
-    if !transfer_done {
+    // Check if there are any commands to execute or transfers to do
+    let has_precommands = !args.precommands.is_empty();
+    let has_commands = !args.commands.is_empty();
+    let has_sources = !args.source.is_empty();
+    
+    if !transfer_done && !(has_precommands || has_commands) {
         let json_str = r#"
         {
             "oss_bucket": "my-bucket",
@@ -85,13 +90,18 @@ fn main() -> Result<(), TransferError> {
         "#;
         return Err(TransferError::Other(
             format!(
-                "Destination cannot be empty,
-            you can put user:pass@ip:/path to use ssh destionation, 
+                "Destination cannot be empty (unless you have precommands/commands for side-effect only operations),
+            you can put user:pass@ip:/path to use ssh destination, 
             or put json format like {json_str} to use aliyun oss destination
             or use base64 encode ssh/oss format"
             )
             .into(),
         ));
+    }
+    
+    // If no destination but has commands, warn user
+    if !transfer_done && (has_precommands || has_commands) && !has_sources {
+        println!("Warning: No destination specified, but commands found. Commands will not be executed without a destination.");
     }
 
     if !errors.is_empty() {
