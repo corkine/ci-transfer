@@ -47,9 +47,33 @@ jobs:
           name: ci-transfer-windows
           path: target/release/ci-transfer.exe
 
+  build_macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install dependencies
+        run: |
+          brew install openssl@3 pkg-config
+          echo "PKG_CONFIG_PATH=$(brew --prefix openssl@3)/lib/pkgconfig" >> "$GITHUB_ENV"
+      - name: Build
+        run: cargo build --release
+      - name: Prepare release binary
+        run: cp target/release/ci-transfer ci-transfer.macos
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-transfer-macos
+          path: ci-transfer.macos
+
   release:
     runs-on: ubuntu-latest
-    needs: [build_linux, build_windows]
+    needs: [build_linux, build_windows, build_macos]
     permissions:
       contents: write
     steps:
@@ -65,5 +89,6 @@ jobs:
           files: |
             artifacts/ci-transfer-linux/ci-transfer
             artifacts/ci-transfer-windows/ci-transfer.exe
+            artifacts/ci-transfer-macos/ci-transfer.macos
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

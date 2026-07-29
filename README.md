@@ -49,6 +49,23 @@
     ./ci-transfer -s target/x86_64-unknown-linux-musl/release/calibre-api -d "$DESTINATION" --precommands "rm -f /root/calibre-web/calibre-api" -c "/root/calibre-web/deploy.sh"
 ```
 
+### macOS 编译与使用
+
+本地编译：
+```bash
+brew install rust openssl@3 pkg-config
+PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig" cargo build --release
+```
+
+在 GitHub Actions 中下载发布产物：
+```yaml
+- name: Download ci-transfer on macOS
+  run: |
+    curl -L -o ci-transfer https://github.com/corkine/ci-transfer/releases/latest/download/ci-transfer.macos
+    chmod +x ci-transfer
+    ./ci-transfer --help
+```
+
 ### 多文件部署示例
 ```yaml
 - name: Deploy multiple files
