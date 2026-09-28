@@ -1,1 +1,7 @@
 /target
+/archived/target
+/dist/
+/ci-transfer
+/ci-transfer.exe
+/*.test
+/*.test.exe
